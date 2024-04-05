@@ -84,7 +84,7 @@ jobs:
     env:
       target: ${{ matrix.platform }}-${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run sccache-cache
@@ -118,7 +118,6 @@ jobs:
       - name: Run Native Build
         shell: pwsh
         run: |
-          cargo build --release --manifest-path cli/Cargo.toml --target ${{ matrix.rust-target }} --bin typst-book
           cargo build --profile release-stripped --manifest-path cli/Cargo.toml --target ${{ matrix.rust-target }} --bin typst-book
       - uses: actions/upload-artifact@v3
         with:
@@ -146,7 +145,7 @@ jobs:
     env:
       target: ${{ matrix.platform }}-${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - uses: actions/download-artifact@v2
@@ -165,7 +164,6 @@ jobs:
           mkdir -p frontend/node_modules
           cp -r artifacts/typst-ts-dist frontend/node_modules/@myriaddreamin
           cp -r artifacts/typst-book-dist frontend/dist
-          docker run -v /var/run/docker.sock:/var/run/docker.sock -v ${GITHUB_WORKSPACE}:/project -w /project typst-book/riscv64:latest cargo build --manifest-path cli/Cargo.toml --release --target ${CARGO_TARGET} --bin typst-book
           docker run -v /var/run/docker.sock:/var/run/docker.sock -v ${GITHUB_WORKSPACE}:/project -w /project typst-book/riscv64:latest cargo build --manifest-path cli/Cargo.toml --profile release-stripped --target ${CARGO_TARGET} --bin typst-book
         env:
           CROSS_DOCKER_IN_DOCKER: true
@@ -198,7 +196,7 @@ jobs:
       - name: Install dependencies
         run: apk add --no-cache git clang lld musl-dev npm
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run sccache-cache
@@ -220,17 +218,11 @@ jobs:
           dir: 'frontend'
       - name: build binaries
         run: |
-          cargo build --release --manifest-path cli/Cargo.toml --target $RUST_TARGET --bin typst-book
           cargo build --profile release-stripped --manifest-path cli/Cargo.toml --target $RUST_TARGET --bin typst-book
       - uses: actions/upload-artifact@v3
         with:
           name: typst-book-${{ env.target }}
           path: target/${{ env.RUST_TARGET }}/release-stripped/typst-book*
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v3
-        with:
-          name: typst-book-${{ env.target }}-relwithdebuginfo
-          path: target/${{ env.RUST_TARGET }}/release/typst-book*
           if-no-files-found: error
 
   release:
@@ -240,7 +232,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: actions/download-artifact@v2
@@ -258,18 +250,7 @@ jobs:
             mkdir -p tmp/$name
             rm -f artifacts/$src/*.d
             rm -f artifacts/$src/*.pdb
-            
-            mkdir -p release/$name/bin
-            cp artifacts/$src-relwithdebuginfo/typst-book* "release/$name/bin/"
-            cp -r CHANGELOG release/$name/
-            cp -r github-pages/docs release/$name/
-            cp README.md \
-              LICENSE \
-              CHANGELOG.md \
-              release/$name/
-            chmod +x release/$name/bin/typst-book*
-            tar czvf gh-release/$name-relwithdebuginfo.tar.gz -C release $name
-            
+
             mkdir -p release-stripped/$name/bin
             cp artifacts/$src/typst-book* "release-stripped/$name/bin/"
             cp -r CHANGELOG release-stripped/$name/
@@ -279,7 +260,7 @@ jobs:
               CHANGELOG.md \
               release-stripped/$name/
             chmod +x release-stripped/$name/bin/typst-book*
-            tar czvf gh-release/$name.tar.gz -C release-stripped $name
+            zip gh-release/$name.tar.gz release-stripped/$name
           }
           pack_release win32-x64     x86_64-pc-windows-msvc
           pack_release win32-ia32    i686-pc-windows-msvc
